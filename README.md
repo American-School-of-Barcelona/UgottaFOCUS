@@ -85,7 +85,8 @@ Here's a blank template to get started. To avoid retyping too much info, do a se
 
 ### About the Client (IA A01 Client Scenario)
 
-Put some basic info about your client and their needs. You don't need to dox them, but provide the context for your project
+My client is one of my friends who is in the same class as I am. She has a hard time trying to stay focused during school, 
+especially when she is on her computer.
  
 
 ### Built With  (IA A03 Justification)
