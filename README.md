@@ -78,6 +78,8 @@
 
 [![Product Name Screen Shot][product-screenshot]](https://example.com)
 
+xI want to create an application that works on Macs that blocks distracting applications and websites. I'm thinking that the user is able to create their block list first, when clicking the create block list button, it shows two parts, applications and websites. The application part examines the computer and allows the user to choose betweene all the installed applications on their computer. And for the websites part, there will be a few suggestions of common websites such as pinterest, netflix, YouTube, instagram, WhatsApp, etc, while the user is still able to manually paste specific websites in there to put that into the block list. After this, the user can hit on the button "create block list" to create the block list. Then the user can choose to start a focus session for how the time they enter on the screen as there will be a question popping up to say "How long would you like to stay focused". After the focus session started, the user is unable to access the applications and websites that were added into the block list. While in the focus session, the program tracks the user's activity to see if there are actually focusing or not. And when the user ends the focus session manually, or when the time is up, the screen will show a summary of the focus session, like how focused was the user during the session. 
+
 Here's a blank template to get started. To avoid retyping too much info, do a search and replace with your text editor for the following: `github_username`, `repo_name`, `twitter_handle`, `linkedin_username`, `email_client`, `email`, `project_title`, `project_description`, `project_license`
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
