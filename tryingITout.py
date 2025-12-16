@@ -56,3 +56,38 @@ def block_loop(duration_minutes):
                 closeChromeTab(url,tab["window"])
 
     focus_running=False
+
+def start_focus_session():
+    if not BLOCKLIST_APPS and not BLOCKLIST_WEBSITES:
+        messagebox.showwarning("Error", "Please create a block list first!")
+        return
+
+    minutes = simpledialog.askinteger(
+        "Focus Session",
+        "How many minutes do you want to stay focused?",
+        minvalue=1,
+        maxvalue=300,
+        initialvalue=25  # Pomodoro default
+    )
+
+    if not minutes:
+        return
+
+    confirm = messagebox.askyesno(
+        "Confirm Focus Session",
+        f"Start {minutes}-minute focus session?\n\n"
+        f"You won't be able to access:\n"
+        f"- {len(BLOCKLIST_APPS)} apps\n"
+        f"- {len(BLOCKLIST_WEBSITES)} websites"
+    )
+    
+    if not confirm:
+        return
+
+    t = threading.Thread(target=block_loop, args=(minutes,))
+    t.daemon = True
+    t.start()
+
+    messagebox.showinfo("Focus Started", 
+                       f"Focus session started for {minutes} minutes!\n\n"
+                       f"To stop early, click 'Stop Session'.")
