@@ -27,6 +27,17 @@ def get_installed_apps():
 
     return sorted(apps)
 
+def load_blocklists():
+    """Load saved blocklists from file"""
+    global BLOCKLIST_APPS, BLOCKLIST_WEBSITES
+    try:
+        if os.path.exists(blocklist_file):
+            with open(blocklist_file, 'r') as f:
+                data = json.load(f)
+                BLOCKLIST_APPS = data.get("apps", [])
+                BLOCKLIST_WEBSITES = data.get("websites", [])
+    except Exception as e:
+        print(f"Error loading blocklists: {e}")
 
 def block_loop(duration_minutes):
     global focus_running
