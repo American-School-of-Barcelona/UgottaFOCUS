@@ -27,35 +27,57 @@ def get_installed_apps():
 
     return sorted(apps)
 
-def load_blocklists():
-    """Load saved blocklists from file"""
-    global BLOCKLIST_APPS, BLOCKLIST_WEBSITES
-    try:
-        if os.path.exists(blocklist_file):
-            with open(blocklist_file, 'r') as f:
-                data = json.load(f)
-                BLOCKLIST_APPS = data.get("apps", [])
-                BLOCKLIST_WEBSITES = data.get("websites", [])
-    except Exception as e:
-        print(f"Error loading blocklists: {e}")
-
 def block_loop(duration_minutes):
     global focus_running
-    focus_running=True
-    end_time=time.time()+duration_minutes*60
+    focus_running = True
+    end_time = time.time() + duration_minutes * 60
 
-    while time.time()<end_time and focus_running:
+    while time.time() < end_time and focus_running:
 
         for app in BLOCKLIST_APPS:
             kill_app_by_name(app)
 
-        tabs=getCurrentChromeTabs()
+        tabs = getCurrentChromeTabs()
         for tab in tabs:
-            url=tab["url"]
+            url = tab["url"]
             if any(site in url for site in BLOCKLIST_WEBSITES):
-                closeChromeTab(url,tab["window"])
+                closeChromeTab(url, tab["window"])
 
-    focus_running=False
+        time.sleep(1)
+
+    focus_running = False
+    show_session_summary()
+
+def closeChromeTab(url, window_index):
+    script = f'''
+    tell application "Google Chrome"
+        tell window {window_index}
+            repeat with t in tabs
+                if (URL of t) is "{url}" then close t
+            end repeat
+        end tell
+    end tell
+    '''
+    os.system(f"osascript -e '{script}'")
+
+def show_session_summary():
+    history = getRecentChromeHistoryCopy(limit=20)
+
+    recent_distractions = [
+        entry for entry in history
+        if any(site in entry["url"] for site in BLOCKLIST_WEBSITES)
+    ]
+
+    summary = f"Blocked apps: {len(BLOCKLIST_APPS)}\n"
+    summary += f"Blocked websites: {len(BLOCKLIST_WEBSITES)}\n"
+    summary += f"Recent distractions: {len(recent_distractions)}\n\n"
+
+    if recent_distractions:
+        summary += "Recent Distraction URLs:\n"
+        for item in recent_distractions:
+            summary += "- " + item['url'] + "\n"
+
+    messagebox.showinfo("Focus Session Summary", summary)
 
 def start_focus_session():
     if not BLOCKLIST_APPS and not BLOCKLIST_WEBSITES:
@@ -66,28 +88,27 @@ def start_focus_session():
         "Focus Session",
         "How many minutes do you want to stay focused?",
         minvalue=1,
-        maxvalue=300,
-        initialvalue=25  # Pomodoro default
+        maxvalue=300
     )
 
     if not minutes:
-        return
-
-    confirm = messagebox.askyesno(
-        "Confirm Focus Session",
-        f"Start {minutes}-minute focus session?\n\n"
-        f"You won't be able to access:\n"
-        f"- {len(BLOCKLIST_APPS)} apps\n"
-        f"- {len(BLOCKLIST_WEBSITES)} websites"
-    )
-    
-    if not confirm:
         return
 
     t = threading.Thread(target=block_loop, args=(minutes,))
     t.daemon = True
     t.start()
 
-    messagebox.showinfo("Focus Started", 
-                       f"Focus session started for {minutes} minutes!\n\n"
-                       f"To stop early, click 'Stop Session'.")
+    messagebox.showinfo("Focus Started", "Focus session is now running!")
+
+#The actual window of the application
+root = tk.Tk()
+root.title("UgottaFOCUS")
+root.geometry("400x300")
+
+tk.Label(root, text="UgottaFOCUS", font=("Arial", 24)).pack(pady=20)
+
+tk.Button(root, text="Create Block List", font=("Arial", 16), command=open_blocklist_window).pack(pady=10)
+tk.Button(root, text="Start Focus Session", font=("Arial", 16), command=start_focus_session).pack(pady=10)
+tk.Button(root, text="Quit", font=("Arial", 16), command=root.destroy).pack(pady=10)
+
+root.mainloop()
