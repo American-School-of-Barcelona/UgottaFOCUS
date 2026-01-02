@@ -100,6 +100,80 @@ def start_focus_session():
 
     messagebox.showinfo("Focus Started", "Focus session is now running!")
 
+def open_blocklist_window():
+    block_win = tk.Toplevel()
+    block_win.title("Create Block List")
+    block_win.geometry("500x500")
+
+    notebook = ttk.Notebook(block_win)
+    notebook.pack(fill='both', expand=True)
+
+    
+    apps_frame = tk.Frame(notebook)
+    notebook.add(apps_frame, text="Applications")
+
+    apps_list = get_installed_apps()
+    apps_var_list = []
+
+    canvas = tk.Canvas(apps_frame)
+    scrollbar = tk.Scrollbar(apps_frame, orient="vertical", command=canvas.yview)
+    scroll_frame = tk.Frame(canvas)
+
+    scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    canvas.create_window((0,0), window=scroll_frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    for app in apps_list:
+        var = tk.BooleanVar()
+        chk = tk.Checkbutton(scroll_frame, text=app, variable=var)
+        chk.pack(anchor="w")
+        apps_var_list.append((app, var))
+
+    canvas.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+
+    
+    site_frame = tk.Frame(notebook)
+    notebook.add(site_frame, text="Websites")
+
+    suggestions = [
+        "youtube.com", "instagram.com", "tiktok.com",
+        "discord.com", "netflix.com", "pinterest.com"
+    ]
+    site_vars = []
+
+    tk.Label(site_frame, text="Suggested Websites:").pack(anchor="w")
+
+    for site in suggestions:
+        var = tk.BooleanVar()
+        chk = tk.Checkbutton(site_frame, text=site, variable=var)
+        chk.pack(anchor="w")
+        site_vars.append((site, var))
+
+    tk.Label(site_frame, text="\nAdd custom websites:").pack(anchor="w")
+    custom_entry = tk.Entry(site_frame, width=40)
+    custom_entry.pack(anchor="w")
+
+    def save_blocklist():
+        BLOCKLIST_APPS.clear()
+        BLOCKLIST_WEBSITES.clear()
+
+        for app, var in apps_var_list:
+            if var.get():
+                BLOCKLIST_APPS.append(app)
+
+        for site, var in site_vars:
+            if var.get():
+                BLOCKLIST_WEBSITES.append(site)
+
+        custom_site = custom_entry.get().strip()
+        if custom_site and "." in custom_site:
+            BLOCKLIST_WEBSITES.append(custom_site)
+
+        messagebox.showinfo("Saved", "Block list created!")
+
+    tk.Button(block_win, text="Save Block List", command=save_blocklist).pack(pady=10)
+
 #The actual window of the application
 root = tk.Tk()
 root.title("UgottaFOCUS")
