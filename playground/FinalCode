@@ -1,0 +1,358 @@
+import tkinter as tk
+from tkinter import messagebox, simpledialog, ttk
+import threading
+import time
+from chromeCheck import getCurrentChromeTabs
+from kill_app import kill_app_by_name
+from chromeHistory import getRecentChromeHistoryCopy
+import os
+import json
+import subprocess
+import random
+
+TK_SILENCE_DEPRECATION=1
+
+BLOCKLIST_APPS=[]
+BLOCKLIST_WEBSITES=[]
+focus_running=False
+blocklist_file = os.path.join(os.path.dirname(__file__), 'blocklists.json')
+violation_count = 0
+session_duration_var = None
+
+# Session tracking
+session_blocked_apps = {}  # {app_name: count}
+session_blocked_websites = {}  # {website: count}
+session_start_time = None
+session_duration_minutes = 0
+
+def get_installed_apps():
+    apps_dir="/Applications"
+    apps=[]
+
+    if not os.path.exists(apps_dir):
+        return apps
+
+    for item in os.listdir(apps_dir):
+        if item.endswith(".app"):
+            apps.append(item.replace(".app",""))
+
+    return sorted(apps)
+
+def load_blocklists():
+    """Load saved blocklists from file"""
+    global BLOCKLIST_APPS, BLOCKLIST_WEBSITES
+    try:
+        if os.path.exists(blocklist_file):
+            with open(blocklist_file, 'r') as f:
+                data = json.load(f)
+                BLOCKLIST_APPS = data.get("apps", [])
+                BLOCKLIST_WEBSITES = data.get("websites", [])
+    except Exception as e:
+        print(f"Error loading blocklists: {e}")
+
+def save_blocklists():
+    """Save blocklists to file"""
+    try:
+        data = {"apps": BLOCKLIST_APPS, "websites": BLOCKLIST_WEBSITES}
+        with open(blocklist_file, 'w') as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        print(f"Error saving blocklists: {e}")
+
+def closeChromeTab(url, window_id):
+    """Close a Chrome tab by URL using AppleScript"""
+    global session_blocked_websites
+    print(f"Attempting to close blocked website: {url}")
+    
+    # Track blocked website
+    for site in BLOCKLIST_WEBSITES:
+        if site.lower() in url.lower():
+            session_blocked_websites[site] = session_blocked_websites.get(site, 0) + 1
+            break
+    
+    # Close the tab using AppleScript
+    try:
+        script = f'''
+        tell application "Google Chrome"
+            set windowIndex to {window_id}
+            repeat with w in windows
+                repeat with t in tabs of w
+                    if URL of t contains "{url.split('?')[0]}" then
+                        close t
+                        return true
+                    end if
+                end repeat
+            end repeat
+        end tell
+        '''
+        result = subprocess.run(['osascript', '-e', script], capture_output=True, text=True, timeout=3)
+        print(f"AppleScript result: {result.returncode}")
+    except Exception as e:
+        print(f"Error closing Chrome tab: {e}")
+    
+    root.after(0, lambda: messagebox.showwarning("Hang on!", f"A blocked website was closed: {url}"))
+    return True
+
+def show_session_summary():
+    """Show detailed summary after focus session ends"""
+    global violation_count, session_blocked_apps, session_blocked_websites, session_start_time, session_duration_minutes
+    try:
+        # Calculate session details
+        elapsed_time = session_duration_minutes
+        hours = int(elapsed_time // 60)
+        minutes = int(elapsed_time % 60)
+        time_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
+        
+        # Build summary report
+        summary = f"FOCUS SESSION COMPLETE!\n"
+        summary += f"{'='*50}\n\n"
+        summary += f"SESSION DURATION: {time_str}\n\n"
+        
+        summary += f"BLOCKLIST STATS:\n"
+        summary += f"  • Apps in blocklist: {len(BLOCKLIST_APPS)}\n"
+        summary += f"  • Websites in blocklist: {len(BLOCKLIST_WEBSITES)}\n\n"
+        
+        # Apps blocked breakdown
+        if session_blocked_apps:
+            summary += f"APPLICATIONS ATTEMPTED:\n"
+            for app, count in sorted(session_blocked_apps.items(), key=lambda x: x[1], reverse=True):
+                summary += f"  • {app}: {count}x blocked\n"
+            summary += "\n"
+        else:
+            summary += f"No apps attempted to open\n\n"
+        
+        # Websites blocked breakdown
+        if session_blocked_websites:
+            summary += f"WEBSITES ATTEMPTED:\n"
+            for site, count in sorted(session_blocked_websites.items(), key=lambda x: x[1], reverse=True):
+                summary += f"  • {site}: {count}x blocked\n"
+            summary += "\n"
+        else:
+            summary += f"No websites attempted to visit\n\n"
+        
+        summary += f"{'='*50}\n"
+        summary += f"TOTAL VIOLATIONS: {violation_count}\n"
+        
+        if violation_count == 0:
+            summary += f"Perfect focus session! No distractions!\n"
+        
+        # Show summary in a message box
+        messagebox.showinfo("Focus Session Summary", summary)
+        
+        # Reset tracking
+        violation_count = 0
+        session_blocked_apps.clear()
+        session_blocked_websites.clear()
+        session_start_time = None
+        session_duration_minutes = 0
+        
+    except Exception as e:
+        print(f"Error showing summary: {e}")
+
+def update_session_status(seconds_left):
+    """Update session status display"""
+    pass
+
+def reset_session_status():
+    """Reset session status"""
+    pass
+
+def show_persuasion_message():
+    """Show a random persuasion message when user tries to quit"""
+    persuasion_quotes = [
+        "You're so close to finishing! Don't give up now!",
+        "Just a bit more! You've come this far, keep going!",
+        "Your future self will thank you for staying focused!",
+        "Remember: this is for YOUR success!",
+        "Discipline equals freedom. Stay strong!",
+        "You're building a better version of yourself right now!",
+        "Winners don't quit. You got this!",
+        "Every minute of focus counts towards your goals!",
+        "Stay focused. The distractions will still be there later!",
+        "Your focus time is an investment in your future!",
+        "This is the habit of successful people. Keep going!",
+        "You have the power to achieve amazing things!",
+        "One more moment of focus. You can do it!",
+        "Believe in yourself. You're stronger than you think!",
+        "Finishing strong is better than quitting early!",
+    ]
+    
+    quote = random.choice(persuasion_quotes)
+    
+    # Create a custom persuasion dialog
+    result = messagebox.askyesno(
+        "Hold On!",
+        f"{quote}\n\nAre you sure you want to quit?"
+    )
+    
+    return result
+
+def on_closing():
+    """Handle window closing with persuasion attempt"""
+    global focus_running
+    
+    # If a session is running, show extra warning
+    if focus_running:
+        result = messagebox.askyesno(
+            "Session Running!",
+            "A focus session is currently running!\n\n"
+            "If you quit now, your session data won't be saved.\n\n"
+            "Are you SURE you want to quit?"
+        )
+        if not result:
+            return
+    
+    # Show persuasion message for regular quit attempt
+    if not show_persuasion_message():
+        return
+    
+    # User confirmed they want to quit
+    root.destroy()
+
+def block_loop(duration_minutes):
+    global focus_running, session_blocked_apps, session_start_time, session_duration_minutes
+    focus_running = True
+    session_start_time = time.time()
+    session_duration_minutes = duration_minutes
+    end_time = time.time() + duration_minutes * 60
+
+    while time.time() < end_time and focus_running:
+
+        for app in BLOCKLIST_APPS:
+            try:
+                if kill_app_by_name(app):
+                    # Track blocked app
+                    session_blocked_apps[app] = session_blocked_apps.get(app, 0) + 1
+                    root.after(0, lambda a=app: messagebox.showwarning("Hang on!", f"Application blocked: {a}"))
+            except Exception:
+                pass
+
+        try:
+            tabs = getCurrentChromeTabs()
+            for tab in tabs:
+                url = tab["url"]
+                if any(site in url for site in BLOCKLIST_WEBSITES):
+                    closeChromeTab(url, tab["window"])
+        except Exception:
+            pass
+
+        update_session_status(end_time - time.time())
+        time.sleep(2)
+
+    focus_running = False
+    show_session_summary()
+    reset_session_status()
+
+def start_focus_session():
+    if not BLOCKLIST_APPS and not BLOCKLIST_WEBSITES:
+        messagebox.showwarning("Error", "Please create a block list first!")
+        return
+
+    minutes = simpledialog.askinteger(
+        "Focus Session",
+        "How many minutes do you want to stay focused?",
+        minvalue=1,
+        maxvalue=300
+    )
+
+    if not minutes:
+        return
+
+    # Run block loop in separate thread
+    t = threading.Thread(target=block_loop, args=(minutes,))
+    t.daemon = True
+    t.start()
+
+    messagebox.showinfo("Focus Started", "Focus session is now running!")
+
+def open_blocklist_window():
+    block_win = tk.Toplevel()
+    block_win.title("Create Block List")
+    block_win.geometry("500x500")
+
+    notebook = ttk.Notebook(block_win)
+    notebook.pack(fill='both', expand=True)
+
+    # --- Apps Tab ---
+    apps_frame = tk.Frame(notebook)
+    notebook.add(apps_frame, text="Applications")
+
+    apps_list = get_installed_apps()
+    apps_var_list = []
+
+    canvas = tk.Canvas(apps_frame)
+    scrollbar = tk.Scrollbar(apps_frame, orient="vertical", command=canvas.yview)
+    scroll_frame = tk.Frame(canvas)
+
+    scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    canvas.create_window((0,0), window=scroll_frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    for app in apps_list:
+        var = tk.BooleanVar()
+        chk = tk.Checkbutton(scroll_frame, text=app, variable=var)
+        chk.pack(anchor="w")
+        apps_var_list.append((app, var))
+
+    canvas.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+
+    # --- Websites Tab ---
+    site_frame = tk.Frame(notebook)
+    notebook.add(site_frame, text="Websites")
+
+    suggestions = [
+        "youtube.com", "instagram.com", "tiktok.com",
+        "discord.com", "netflix.com", "pinterest.com"
+    ]
+    site_vars = []
+
+    tk.Label(site_frame, text="Suggested Websites:").pack(anchor="w")
+
+    for site in suggestions:
+        var = tk.BooleanVar()
+        chk = tk.Checkbutton(site_frame, text=site, variable=var)
+        chk.pack(anchor="w")
+        site_vars.append((site, var))
+
+    tk.Label(site_frame, text="\nAdd custom websites:").pack(anchor="w")
+    custom_entry = tk.Entry(site_frame, width=40)
+    custom_entry.pack(anchor="w")
+
+    def save_blocklist():
+        global BLOCKLIST_APPS, BLOCKLIST_WEBSITES
+        BLOCKLIST_APPS.clear()
+        BLOCKLIST_WEBSITES.clear()
+
+        for app, var in apps_var_list:
+            if var.get():
+                BLOCKLIST_APPS.append(app)
+
+        for site, var in site_vars:
+            if var.get():
+                BLOCKLIST_WEBSITES.append(site)
+
+        custom_site = custom_entry.get().strip()
+        if custom_site and "." in custom_site:
+            BLOCKLIST_WEBSITES.append(custom_site)
+
+        save_blocklists()
+        messagebox.showinfo("Saved", "Block list created!")
+
+    tk.Button(block_win, text="Save Block List", command=save_blocklist).pack(pady=10)
+
+root = tk.Tk()
+root.title("UgottaFOCUS")
+root.geometry("400x300")
+
+tk.Label(root, text="UgottaFOCUS", font=("Arial", 24)).pack(pady=20)
+
+tk.Button(root, text="Create Block List", font=("Arial", 16), command=open_blocklist_window).pack(pady=10)
+tk.Button(root, text="Start Focus Session", font=("Arial", 16), command=start_focus_session).pack(pady=10)
+tk.Button(root, text="Quit", font=("Arial", 16), command=on_closing).pack(pady=10)
+
+root.protocol("WM_DELETE_WINDOW", on_closing)
+
+if __name__ == "__main__":
+    load_blocklists()
+    root.mainloop()
