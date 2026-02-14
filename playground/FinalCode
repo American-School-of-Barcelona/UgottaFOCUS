@@ -10,8 +10,6 @@ import json
 import subprocess
 import random
 
-TK_SILENCE_DEPRECATION=1
-
 BLOCKLIST_APPS=[]
 BLOCKLIST_WEBSITES=[]
 focus_running=False
