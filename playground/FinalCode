@@ -36,7 +36,6 @@ def get_installed_apps():
     return sorted(apps)
 
 def load_blocklists():
-    """Load saved blocklists from file"""
     global BLOCKLIST_APPS, BLOCKLIST_WEBSITES
     try:
         if os.path.exists(blocklist_file):
@@ -48,7 +47,6 @@ def load_blocklists():
         print(f"Error loading blocklists: {e}")
 
 def save_blocklists():
-    """Save blocklists to file"""
     try:
         data = {"apps": BLOCKLIST_APPS, "websites": BLOCKLIST_WEBSITES}
         with open(blocklist_file, 'w') as f:
@@ -57,7 +55,6 @@ def save_blocklists():
         print(f"Error saving blocklists: {e}")
 
 def closeChromeTab(url, window_id):
-    """Close a Chrome tab by URL using AppleScript"""
     global session_blocked_websites
     print(f"Attempting to close blocked website: {url}")
     
@@ -89,7 +86,6 @@ def closeChromeTab(url, window_id):
     return True
 
 def show_session_summary():
-    """Show detailed summary after focus session ends"""
     global violation_count, session_blocked_apps, session_blocked_websites, session_start_time, session_duration_minutes
     try:
  
@@ -140,15 +136,12 @@ def show_session_summary():
         print(f"Error showing summary: {e}")
 
 def update_session_status(seconds_left):
-    """Update session status display"""
     pass
 
 def reset_session_status():
-    """Reset session status"""
     pass
 
 def show_persuasion_message():
-    """Show a random persuasion message when user tries to quit"""
     persuasion_quotes = [
         "You're so close to finishing! Don't give up now!",
         "Just a bit more! You've come this far, keep going!",
@@ -177,7 +170,6 @@ def show_persuasion_message():
     return result
 
 def on_closing():
-    """Handle window closing with persuasion attempt"""
     global focus_running
     
     if focus_running:
