@@ -17,7 +17,6 @@ blocklist_file = os.path.join(os.path.dirname(__file__), 'blocklists.json')
 violation_count = 0
 session_duration_var = None
 
-# Session tracking
 session_blocked_apps = {}  # {app_name: count}
 session_blocked_websites = {}  # {website: count}
 session_start_time = None
@@ -62,13 +61,11 @@ def closeChromeTab(url, window_id):
     global session_blocked_websites
     print(f"Attempting to close blocked website: {url}")
     
-    # Track blocked website
     for site in BLOCKLIST_WEBSITES:
         if site.lower() in url.lower():
             session_blocked_websites[site] = session_blocked_websites.get(site, 0) + 1
             break
     
-    # Close the tab using AppleScript
     try:
         script = f'''
         tell application "Google Chrome"
@@ -95,13 +92,12 @@ def show_session_summary():
     """Show detailed summary after focus session ends"""
     global violation_count, session_blocked_apps, session_blocked_websites, session_start_time, session_duration_minutes
     try:
-        # Calculate session details
+ 
         elapsed_time = session_duration_minutes
         hours = int(elapsed_time // 60)
         minutes = int(elapsed_time % 60)
         time_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
         
-        # Build summary report
         summary = f"FOCUS SESSION COMPLETE!\n"
         summary += f"{'='*50}\n\n"
         summary += f"SESSION DURATION: {time_str}\n\n"
@@ -110,7 +106,6 @@ def show_session_summary():
         summary += f"  • Apps in blocklist: {len(BLOCKLIST_APPS)}\n"
         summary += f"  • Websites in blocklist: {len(BLOCKLIST_WEBSITES)}\n\n"
         
-        # Apps blocked breakdown
         if session_blocked_apps:
             summary += f"APPLICATIONS ATTEMPTED:\n"
             for app, count in sorted(session_blocked_apps.items(), key=lambda x: x[1], reverse=True):
@@ -119,7 +114,6 @@ def show_session_summary():
         else:
             summary += f"No apps attempted to open\n\n"
         
-        # Websites blocked breakdown
         if session_blocked_websites:
             summary += f"WEBSITES ATTEMPTED:\n"
             for site, count in sorted(session_blocked_websites.items(), key=lambda x: x[1], reverse=True):
@@ -134,10 +128,8 @@ def show_session_summary():
         if violation_count == 0:
             summary += f"Perfect focus session! No distractions!\n"
         
-        # Show summary in a message box
         messagebox.showinfo("Focus Session Summary", summary)
         
-        # Reset tracking
         violation_count = 0
         session_blocked_apps.clear()
         session_blocked_websites.clear()
@@ -177,7 +169,6 @@ def show_persuasion_message():
     
     quote = random.choice(persuasion_quotes)
     
-    # Create a custom persuasion dialog
     result = messagebox.askyesno(
         "Hold On!",
         f"{quote}\n\nAre you sure you want to quit?"
@@ -189,7 +180,6 @@ def on_closing():
     """Handle window closing with persuasion attempt"""
     global focus_running
     
-    # If a session is running, show extra warning
     if focus_running:
         result = messagebox.askyesno(
             "Session Running!",
@@ -200,11 +190,9 @@ def on_closing():
         if not result:
             return
     
-    # Show persuasion message for regular quit attempt
     if not show_persuasion_message():
         return
     
-    # User confirmed they want to quit
     root.destroy()
 
 def block_loop(duration_minutes):
@@ -256,7 +244,6 @@ def start_focus_session():
     if not minutes:
         return
 
-    # Run block loop in separate thread
     t = threading.Thread(target=block_loop, args=(minutes,))
     t.daemon = True
     t.start()
@@ -271,7 +258,6 @@ def open_blocklist_window():
     notebook = ttk.Notebook(block_win)
     notebook.pack(fill='both', expand=True)
 
-    # --- Apps Tab ---
     apps_frame = tk.Frame(notebook)
     notebook.add(apps_frame, text="Applications")
 
@@ -295,7 +281,6 @@ def open_blocklist_window():
     canvas.pack(side="left", fill="both", expand=True)
     scrollbar.pack(side="right", fill="y")
 
-    # --- Websites Tab ---
     site_frame = tk.Frame(notebook)
     notebook.add(site_frame, text="Websites")
 
